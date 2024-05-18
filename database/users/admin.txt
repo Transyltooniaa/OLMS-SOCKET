@@ -1,0 +1,3 @@
+ADadmin1 Dhruv admin1@example.com password123 0
+ADadmin2 Shyam admin2@example.com secure456 0
+ADadmin3 Shreyas admin3@example.com pass789 0

@@ -1,0 +1,4 @@
+.vscode
+/src/client_exec
+/src/server_exec
+/src/a.out
