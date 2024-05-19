@@ -615,42 +615,29 @@ void showBooksBeyondDueDate(int socket, struct BSTNodeBorrower *root, MsgPacket 
     static int isRootCall = 1;   // Static to track if the current call is the root call
 
     if (root == NULL) {
-        // If this is the root call and we have reached a leaf node, check if booksOverdue is still 0
-        // if (isRootCall) {
-        //     if (booksOverdue == 0) {
-        //         send(socket, "No books are overdue!\n", strlen("No books are overdue!\n"), 0);
-        //     }
-        //     const char *endOfTransmission = "END_OF_TRANSMISSION";
-        //     send(socket, endOfTransmission, strlen(endOfTransmission) + 1, 0);
-        //     booksOverdue = 0; // Reset for the next call
-        //     isRootCall = 1;   // Reset the flag for the next call
-        // }
         return;
     }
 
-    // Check if the current node's username matches the packet's username
-    if (strcmp(root->data.username, packet->username) == 0) {
-        char buffer[BUFFER_SIZE];
-        for (int i = 0; i < 3; i++) {
-            if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
-                int remainingTime = calculateRemainingDays(root->data.borrowedBooksDueDate[i]);
-                if (remainingTime < 0) {
-                    snprintf(buffer, BUFFER_SIZE, "%s: %d days overdue\n", root->data.borrowedBooks[i], -remainingTime);
-                    send(socket, buffer, strlen(buffer), 0);
-                    usleep(10000);
-                    booksOverdue++;
-                }
+    char buffer[BUFFER_SIZE];
+    for (int i = 0; i < 3; i++) {
+        if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
+            int remainingTime = calculateRemainingDays(root->data.borrowedBooksDueDate[i]);
+            if (remainingTime < 0) {
+                snprintf(buffer, BUFFER_SIZE, "%s: %d days overdue \nName: %s\nContact: %lld \nusername: %s\n\n", root->data.borrowedBooks[i], -remainingTime, root->data.name, root->data.contact, root->data.username);
+                send(socket, buffer, strlen(buffer)+1, 0);
+                usleep(10000);
+                booksOverdue++;
             }
         }
     }
-
+    
     // Taverse the left and right subtrees
     showBooksBeyondDueDate(socket, root->left, packet);
     showBooksBeyondDueDate(socket, root->right, packet);
 
     if (isRootCall) {
         if (booksOverdue == 0) {
-            send(socket, "\tNo books are overdue!\n", strlen("\tNo books are overdue!\n")+1, 0);
+            send(socket, "\t\tNo books are overdue!\n", strlen("\t\tNo books are overdue!\n")+1, 0);
         }
         const char *endOfTransmission = "END_OF_TRANSMISSION";
         send(socket, endOfTransmission, strlen(endOfTransmission) + 1, 0);
