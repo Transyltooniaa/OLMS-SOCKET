@@ -262,7 +262,7 @@ void librarianMenu(int sock, char *username) {
         printf("\n----------------Librarian Menu----------------\n");
         printf("1.) Add a book\n");
         printf("2.) Remove a book\n");
-        printf("3.) Update a book\n");
+        printf("3.) Show books beyond due data\n");
         printf("4.) Show all books\n");
         printf("5.) Show all genres\n");
         printf("6.) Show all borrowers\n");
@@ -312,7 +312,8 @@ void librarianMenu(int sock, char *username) {
             payload[3] = strdup(genre);
             payload[4] = strdup(yearPublished);
             payload[5] = strdup(numCopies);
-        } else if (choice == 2 || choice == 3) {
+
+        } else if (choice == 2) {
             char isbn[MAX_NAME_LENGTH];
             printf("\nEnter the ISBN of the book: ");
             scanf("%99s", isbn);
@@ -348,37 +349,6 @@ void librarianMenu(int sock, char *username) {
             scanf("%99s", borrowerUsername);
             clearInputBuffer();
             payload[0] = strdup(borrowerUsername);
-        }
-
-        else if (choice == 3) {
-            char title[MAX_NAME_LENGTH];
-            char isbn[MAX_NAME_LENGTH];
-            char author[MAX_NAME_LENGTH];
-            char genre[MAX_NAME_LENGTH];
-            char yearPublished[MAX_NAME_LENGTH];
-            char numCopies[MAX_NAME_LENGTH];
-
-            printf("\nEnter the title of the book: ");
-            scanf("%99s", title);
-            printf("\nEnter the ISBN of the book: ");
-            scanf("%99s", isbn);
-            printf("\nEnter the author of the book: ");
-            scanf("%99s", author);
-            printf("\nEnter the genre of the book: ");
-            scanf("%99s", genre);
-            printf("\nEnter the year published: ");
-            scanf("%99s", yearPublished);
-            clearInputBuffer();
-            printf("\nEnter the number of copies: ");
-            scanf("%99s", numCopies);
-            clearInputBuffer();
-
-            payload[0] = strdup(title);
-            payload[1] = strdup(isbn);
-            payload[2] = strdup(author);
-            payload[3] = strdup(genre);
-            payload[4] = strdup(yearPublished);
-            payload[5] = strdup(numCopies);
         }
 
         MsgPacket packet = {

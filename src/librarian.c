@@ -241,9 +241,8 @@ void librarianPacketHandler(int new_socket, MsgPacket *packet) {
             break;
 
         case 3:
-            printf("REQFROM CLIENT (UPDATE BOOK) --- %s\n", packet->username);
-            updateBook(new_socket, rootbook, packet->payload[1], packet->payload[0], packet->payload[2], packet->payload[3], packet->payload[4], packet->payload[5]);
-            writeBSTToFileBook(rootbook, "../database/Books/books.txt");
+            printf("REQFROM CLIENT (BOOKS BEYOND DUE DATE) --- %s\n", packet->username);
+            showBooksBeyondDueDate(new_socket, rootborrower, packet);
             break;
             
         case 4:

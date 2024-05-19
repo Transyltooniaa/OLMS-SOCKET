@@ -337,27 +337,6 @@ void FetchBookNameFromISBN(struct BSTNodeBook *root, const char *ISBN, char *boo
 
 
 
-int CheckRemainingTimeForBookReturn(struct BSTNodeBook *root, const char *bookName) {
-    if (root == NULL) {
-        return INT_MAX;
-    }
-
-    int left = CheckRemainingTimeForBookReturn(root->left, bookName);
-
-    for (int i = 0; i < root->genre.numBooks; i++) {
-        struct LibraryBook *book = &(root->genre.books[i]);
-        if (strcmp(book->title, bookName) == 0) {
-            time_t currentTime = time(NULL);
-            int remainingTime = (int)((book->returnDate - currentTime) / 86400); // Convert seconds to days
-            return remainingTime;
-        }
-    }
-
-    int right = CheckRemainingTimeForBookReturn(root->right, bookName);
-
-    return left < right ? left : right;
-}
-
 
 int returnBook(int socket, struct BSTNodeBook *root, const char *ISBN, char *username) {
     if (root == NULL)     

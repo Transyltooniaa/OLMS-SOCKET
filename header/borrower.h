@@ -18,6 +18,7 @@ typedef struct Borrower {
     char password[MAX_NAME_LENGTH]; 
     long long int contact;
     char borrowedBooks[3][MAX_NAME_LENGTH];
+    int borrowedBooksDueDate[3];
     int numBorrowedBooks;
     int fine;
     int isLate;
@@ -54,4 +55,5 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet);
 void showAllBorrowersLoggedIn(int socket, struct BSTNodeBorrower *root);
 void deleteBorrower(int socket ,struct BSTNodeBorrower **root, const char *username);
 int getMaxUserID(struct BSTNodeBorrower *root);
+void showBooksBeyondDueDate(int socket, struct BSTNodeBorrower *root, MsgPacket *packet);
 #endif /* BORROWER_H */
