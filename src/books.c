@@ -272,6 +272,11 @@ int borrowBook(int socket, struct BSTNodeBook *root, const char *ISBN, char *use
             {
                 book->isAvailable = 0;
                 send(socket, "\t\tBook not available !", strlen("\t\tBook not available !") + 1, 0);
+                usleep(10000);
+                const char *eot = "END_OF_TRANSMISSION";
+                send(socket, eot, strlen(eot) + 1, 0);
+                usleep(10000);
+                return 0;
             } 
             
             else 

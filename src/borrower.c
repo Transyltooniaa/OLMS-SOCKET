@@ -178,7 +178,7 @@ void showBorrowedBooks(int socket, struct BSTNodeBorrower *root, MsgPacket *pack
         char buffer[BUFFER_SIZE];
         for (int i = 0; i < 3; i++) {
             if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
-                snprintf(buffer, BUFFER_SIZE, "\t%s\n", root->data.borrowedBooks[i]);
+                snprintf(buffer, BUFFER_SIZE, "\tBOOK : %s\n", root->data.borrowedBooks[i]);
                 send(socket, buffer, strlen(buffer) + 1, 0); 
                 usleep(10000);
             }
@@ -341,6 +341,7 @@ void borrowBookUserUpdate(struct BSTNodeBorrower *root, char *username, const ch
     }
 
 }      
+
 
 
 int isEligibleToBorrow(struct BSTNodeBorrower *root, char *username) {
@@ -585,14 +586,16 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet)
     switch (packet->choice)
     {
     case 1:
+        printf("REQFROMCLIENT (ALL_GENRES) --- %s\n" , packet->username);
         ReadAllGenres(new_socket,rootbook ,packet);
         break;
     case 2:
+        printf("REQFROMCLIENT (ALL_BOOKS) --- %s\n" , packet->username);
         ReadAllBooks(new_socket,rootbook ,packet);
         break;
 
     case 3:
-
+        printf("REQFROMCLIENT (BORROW_BOOK) --- %s\n" , packet->username);
         validISBN = validateISBN(packet->payload[0]);
         if(validISBN == 0)
         {
@@ -622,6 +625,7 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet)
         break;
 
     case 4:
+        printf("REQFROMCLIENT (RETURN_BOOK) --- %s\nx" , packet->username);
         validISBN = validateISBN(packet->payload[0]);
         if(validISBN == 0)
         {
@@ -655,33 +659,40 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet)
 
         break;
     
-    //show borrowed books
+ 
     case 5:
+        printf("REQFROMCLIENT (SHOW_BORROWED_BOOKS) --- %s\n" , packet->username);
         showBorrowedBooks(new_socket,rootborrower ,packet);
         break;
 
     case 6:
+        printf("REQFROMCLIENT (SHOW_MY_INFO) --- %s\n" , packet->username);
         showMyInfo(new_socket,rootborrower ,packet);
         break;
 
     case 7:
+        printf("REQFROMCLIENT (CHANGE_PASSWORD) --- %s\n" , packet->username);
         changePassword(new_socket,rootborrower ,packet);
         break;
 
     case 8:
+        printf("REQFROMCLIENT (UPDATE_CONTACT) --- %s\n" , packet->username);
         updateContact(new_socket,rootborrower ,packet);
         break;
 
     case 9:
+        printf("REQFROMCLIENT (CHECK_DUE_DATE) --- %s\n" , packet->username);
         sendDueDates(new_socket,rootborrower ,packet,rootbook);
         break;
     
     case 10:
+        printf("REQFROMCLIENT (LOGOUT) --- %s\n" , packet->username);
         setLoginStatus(rootborrower, packet->username, 0);
         logout(new_socket);
         break;
 
     default:
+        printf("REQFROMCLIENT (INVALID) --- %s\n" , packet->username);
         eot = "END_OF_TRANSMISSION";
         send(new_socket, eot, strlen(eot) + 1, 0);
         break;
