@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include "../header/borrower.h"
 #include "../header/book.h"
+#include <sys/file.h>
+#include <unistd.h>
 
 
 int isAvailable = 0;
@@ -89,10 +91,17 @@ void freeLibrarianBST(struct BSTNodeLibrarian* root) {
 }
 
 // funtion to read the database from a file
-void ReadDatabaseLibrarian(struct BSTNodeLibrarian  **root, const char *filename) {
+void ReadDatabaseLibrarian(struct BSTNodeLibrarian **root, const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    int fd = fileno(file);
+    if (flock(fd, LOCK_SH) != 0) {
+        perror("Error locking file");
+        fclose(file);
         exit(EXIT_FAILURE);
     }
 
@@ -100,14 +109,28 @@ void ReadDatabaseLibrarian(struct BSTNodeLibrarian  **root, const char *filename
     struct Librarian librarian;
 
     while (fgets(buffer, BUFFER_SIZE, file) != NULL) {
-        sscanf(buffer, "%s %s %s %s %d", librarian.username, librarian.name, librarian.email, librarian.password, &librarian.LoginStatus);
+        int numParsed = sscanf(buffer, "%49s %49s %49s %49s %d",
+                               librarian.username, librarian.name, librarian.email,
+                               librarian.password, &librarian.LoginStatus);
+        if (numParsed != 5) {
+            fprintf(stderr, "Error parsing line: %s", buffer);
+            continue;  // Skip this line and continue with the next
+        }
+
+        // Insert the parsed librarian into the BST
         insertLibrarian(root, librarian);
     }
+
+    if (flock(fd, LOCK_UN) != 0) {
+        perror("Error unlocking file");
+        fclose(file);
+        exit(EXIT_FAILURE);
+    }
+
     fclose(file);
 }
 
-// function to write the BST to a file
-void WriteLibrarianHelper(struct BSTNodeLibrarian* root, FILE* file) {
+void WriteLibrarianHelper(struct BSTNodeLibrarian *root, FILE *file) {
     if (root == NULL) {
         return;
     }
@@ -117,18 +140,36 @@ void WriteLibrarianHelper(struct BSTNodeLibrarian* root, FILE* file) {
     WriteLibrarianHelper(root->right, file);
 }
 
+void lockFile(int fd, short lock_type) {
+    struct flock lock;
+    lock.l_type = lock_type; // F_RDLCK, F_WRLCK, F_UNLCK
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0; // 0 means lock the entire file
 
-void WriteLibrarian(struct BSTNodeLibrarian  **root, const char *filename) {
+    if (fcntl(fd, F_SETLKW, &lock) == -1) {
+        perror("Error setting lock");
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void WriteLibrarian(struct BSTNodeLibrarian **root, const char *filename) {
     FILE *file = fopen(filename, "w");
     if (file == NULL) {
         perror("Error opening file");
         exit(EXIT_FAILURE);
     }
 
+    int fd = fileno(file);
+    lockFile(fd, F_WRLCK); // Acquire an exclusive write lock
+
     WriteLibrarianHelper(*root, file);
+
+    lockFile(fd, F_UNLCK); // Release the lock
+
     fclose(file);
 }
-
 // function to set the login status of a librarian
 void setLoginStatusLibr(struct BSTNodeLibrarian* root, const char* username, int status) {
     if (root == NULL) {
@@ -137,6 +178,7 @@ void setLoginStatusLibr(struct BSTNodeLibrarian* root, const char* username, int
 
     if (strcmp(username, root->data.username) == 0) {
         root->data.LoginStatus = status;
+        WriteLibrarian(&root, "../database/users/librarian.txt");
         return;
     }
 
@@ -223,7 +265,7 @@ void librarianPacketHandler(int new_socket, MsgPacket *packet) {
 
     setLoginStatusLibr(rootlibrarian, packet->username, 1);
 
-    
+
 
     switch(packet->choice)
     {
@@ -239,28 +281,23 @@ void librarianPacketHandler(int new_socket, MsgPacket *packet) {
             deleteBook(new_socket, &rootbook, packet->payload[0]);
             writeBSTToFileBook(rootbook, "../database/Books/books.txt");
             break;
-
-        case 3:
-            printf("REQFROM CLIENT (BOOKS BEYOND DUE DATE) --- %s\n", packet->username);
-            showBooksBeyondDueDate(new_socket, rootborrower, packet);
-            break;
             
-        case 4:
+        case 3:
             printf("REQFROM CLIENT (READ ALL BOOKS) --- %s\n", packet->username);
             ReadAllBooks(new_socket, rootbook, packet);
             break;
 
-        case 5:
+        case 4:
             printf("REQFROM CLIENT (READ ALL GENRES) --- %s\n", packet->username);
             ReadAllGenres(new_socket, rootbook, packet);
             break;
 
-        case 6:
+        case 5:
             printf("REQFROM CLIENT (READ ALL BORROWERS) --- %s\n", packet->username);
             showAllBorrowers(new_socket, rootborrower);
             break;
 
-        case 7:
+        case 6:
             printf("REQFROM CLIENT (ADD BORROWER) --- %s\n", packet->username);
             id = getMaxUserID(rootborrower) + 1;
             insertBorrower(&rootborrower, createBorrower(new_socket, id, packet->payload[2], packet->payload[0], packet->payload[1], atoll(packet->payload[3])));
@@ -268,26 +305,42 @@ void librarianPacketHandler(int new_socket, MsgPacket *packet) {
             
             break;
 
-        case 8:
+        case 7:
             printf("REQFROM CLIENT (DELETE BORROWER) --- %s\n", packet->username);
             deleteBorrower(new_socket, &rootborrower, packet->payload[0]);
             WriteDatabaseBorrower(rootborrower, "../database/users/borrower.txt");
             break;
 
-        case 9:
+        case 8:
             printf("REQFROM CLIENT (UPDATE BORROWER) --- %s\n", packet->username);
             showAllBorrowersLoggedIn(new_socket, rootborrower);
             break;
 
-        case 10:
+        case 9:
             printf("REQFROM CLIENT (SHOW ALL LIBRARIANS LOGGED IN) --- %s\n", packet->username);
             showAllLibrariansLoggedIn(new_socket, rootlibrarian);
             break;
 
-        case 11:
+        case 10:
             printf("REQFROM CLIENT (LOGOUT) --- %s\n", packet->username);
             setLoginStatusLibr(rootlibrarian, packet->username, 0);
             logout(new_socket);
+            break;
+
+        case 11:
+            packet->username = (char *)packet->payload[0];
+            packet->payload[0] = packet->payload[1];
+            printf("password: %s\n", packet->payload[0]);
+            printf("REQFROM CLIENT (CHANGE BORROWER PASSWORD) --- %s\n", packet->username);
+            changePassword(new_socket, rootborrower, packet);
+            break;
+
+        case 12:
+            printf("REQFROM CLIENT TO SHOW ALL BOOKS BEYOND DUE DATE --- %s\n", packet->username);
+            showBooksBeyondDueDate(new_socket, rootborrower, packet);
+            break;
+
+        default:
             break;
     }
 }

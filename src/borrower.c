@@ -90,11 +90,18 @@ void insertBorrower(struct BSTNodeBorrower** root, struct Borrower borrower) {
     }
 }
 
-// funtion to read the database from a file
-void ReadDatabaseBorrower(struct BSTNodeBorrower  **root, const char *filename) {
+
+void ReadDatabaseBorrower(struct BSTNodeBorrower **root, const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    int fd = fileno(file);
+    if (flock(fd, LOCK_SH) != 0) {
+        perror("Error locking file");
+        fclose(file);
         exit(EXIT_FAILURE);
     }
 
@@ -102,11 +109,31 @@ void ReadDatabaseBorrower(struct BSTNodeBorrower  **root, const char *filename) 
     struct Borrower borrower;
 
     while (fgets(buffer, BUFFER_SIZE, file) != NULL) {
-        sscanf(buffer, "%d %s %s %s %lld %s %s %s %d %d %d %d %d %d %d",&borrower.ID ,borrower.username, borrower.name, borrower.password, &borrower.contact,borrower.borrowedBooks[0],borrower.borrowedBooks[1],borrower.borrowedBooks[2] ,&borrower.borrowedBooksDueDate[0],&borrower.borrowedBooksDueDate[1],&borrower.borrowedBooksDueDate[2] ,&borrower.numBorrowedBooks, &borrower.fine, &borrower.isLate, &borrower.LoginStatus);
+        int numParsed = sscanf(buffer, "%d %49s %49s %49s %lld %49s %49s %49s %d %d %d %d %d %d %d",
+                               &borrower.ID, borrower.username, borrower.name, borrower.password,
+                               &borrower.contact, borrower.borrowedBooks[0], borrower.borrowedBooks[1],
+                               borrower.borrowedBooks[2], &borrower.borrowedBooksDueDate[0],
+                               &borrower.borrowedBooksDueDate[1], &borrower.borrowedBooksDueDate[2],
+                               &borrower.numBorrowedBooks, &borrower.fine, &borrower.isLate,
+                               &borrower.LoginStatus);
+        if (numParsed != 15) {
+            fprintf(stderr, "Error parsing line: %s", buffer);
+            continue;  // Skip this line and continue with the next
+        }
+
+        // Insert the parsed borrower into the BST
         insertBorrower(root, borrower);
     }
+
+    if (flock(fd, LOCK_UN) != 0) {
+        perror("Error unlocking file");
+        fclose(file);
+        exit(EXIT_FAILURE);
+    }
+
     fclose(file);
 }
+
 
 
 
@@ -584,7 +611,20 @@ void sendDueDatesBorr(int socket, struct BSTNodeBorrower *root, MsgPacket *packe
 
 
 void showBooksBeyondDueDate(int socket, struct BSTNodeBorrower *root, MsgPacket *packet) {
+    static int booksOverdue = 0; // Static to track books across recursive calls
+    static int isRootCall = 1;   // Static to track if the current call is the root call
+
     if (root == NULL) {
+        // If this is the root call and we have reached a leaf node, check if booksOverdue is still 0
+        // if (isRootCall) {
+        //     if (booksOverdue == 0) {
+        //         send(socket, "No books are overdue!\n", strlen("No books are overdue!\n"), 0);
+        //     }
+        //     const char *endOfTransmission = "END_OF_TRANSMISSION";
+        //     send(socket, endOfTransmission, strlen(endOfTransmission) + 1, 0);
+        //     booksOverdue = 0; // Reset for the next call
+        //     isRootCall = 1;   // Reset the flag for the next call
+        // }
         return;
     }
 
@@ -595,26 +635,34 @@ void showBooksBeyondDueDate(int socket, struct BSTNodeBorrower *root, MsgPacket 
             if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
                 int remainingTime = calculateRemainingDays(root->data.borrowedBooksDueDate[i]);
                 if (remainingTime < 0) {
-                    snprintf(buffer, BUFFER_SIZE, "\t%s: %d days overdue\n", root->data.borrowedBooks[i], -remainingTime);
+                    snprintf(buffer, BUFFER_SIZE, "%s: %d days overdue\n", root->data.borrowedBooks[i], -remainingTime);
                     send(socket, buffer, strlen(buffer), 0);
                     usleep(10000);
+                    booksOverdue++;
                 }
             }
         }
-        send(socket, "END_OF_TRANSMISSION", strlen("END_OF_TRANSMISSION") + 1, 0);
-        return;
     }
 
-    if (strcmp(packet->username, root->data.username) < 0) {
-        showBooksBeyondDueDate(socket, root->left, packet);
+    // Taverse the left and right subtrees
+    showBooksBeyondDueDate(socket, root->left, packet);
+    showBooksBeyondDueDate(socket, root->right, packet);
+
+    if (isRootCall) {
+        if (booksOverdue == 0) {
+            send(socket, "\tNo books are overdue!\n", strlen("\tNo books are overdue!\n")+1, 0);
+        }
+        const char *endOfTransmission = "END_OF_TRANSMISSION";
+        send(socket, endOfTransmission, strlen(endOfTransmission) + 1, 0);
+        
+        booksOverdue = 0;
+        isRootCall = 1;
     } else {
-        showBooksBeyondDueDate(socket, root->right, packet);
+        isRootCall = 0;
     }
-
-    send(socket, "\t    No books are overdue !", strlen("No books are overdue !"), 0);
-    const char *endOfTransmission = "END_OF_TRANSMISSION";
-    send(socket, endOfTransmission, strlen(endOfTransmission) + 1, 0);
 }
+
+
 
 
 // Packet Handler

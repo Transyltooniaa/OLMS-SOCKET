@@ -1,7 +1,9 @@
+Biography DiaryOfAYoungGirl AnneFrank 98434829422342 12 1 1950 0 0 NULL
+Fantasy GeronimoStilton GeronimoStilton 9780553380992 12 1 2002 0 0 NULL
 Fiction ToKillAMockingBird HarperLee 9780061120084 1 1 1960 1716095542 1716700342 a
 Fiction 1984 GeorgeOrwell 9780451524935 2 1 1949 1716059594 1716664394 a
 Fiction BraveNewWorld AldousHuxley 9780060850524 2 1 1932 0 0 NULL
-Fiction DiaryOfAWimpyKid JeffKinney 9781402894626 33 1 2007 0 0 NULL
-Non-Fiction Sapiens:ABriefHistoryofHumankind YuvalNoahHarari 9780062316097 2 1 2014 1716059611 1716664411 a
+Fiction DiaryOfAWimpyKid JeffKinney 9781402894626 32 1 2007 1716099402 1716704202 a
+Non-Fiction Sapiens:ABriefHistoryofHumankind YuvalNoahHarari 9780062316097 1 1 2014 1716099426 1716704226 a
 Non-Fiction TheSelfishGene RichardDawkins 9780199291151 1 1 1976 1716098363 1716703163 a
 Non-Fiction ABriefHistoryOfTime StephenHawking 9780553380163 0 0 1988 1716058813 1716663613 a

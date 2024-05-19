@@ -18,9 +18,6 @@ char buffer[BUFFER_SIZE] = {0};
 int sock = 0;
 volatile sig_atomic_t timeout_flag = 0; // Timeout flag
 
-
-
-
 // Function to execute loginMenu with mutex protection
 void loginMenuWrapper() {
     pthread_mutex_lock(&mutex);
