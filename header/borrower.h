@@ -7,6 +7,7 @@
 
 
 #include "server.h"
+#include <time.h>
 
 
 struct LibraryBook; // Forward declaration of LibraryBook struct
@@ -56,4 +57,5 @@ void showAllBorrowersLoggedIn(int socket, struct BSTNodeBorrower *root);
 void deleteBorrower(int socket ,struct BSTNodeBorrower **root, const char *username);
 int getMaxUserID(struct BSTNodeBorrower *root);
 void showBooksBeyondDueDate(int socket, struct BSTNodeBorrower *root, MsgPacket *packet);
+int calculateRemainingDays(time_t dueDate);
 #endif /* BORROWER_H */

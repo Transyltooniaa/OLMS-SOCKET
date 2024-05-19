@@ -440,6 +440,14 @@ void returnBookUserUpdate(struct BSTNodeBorrower *root, char *username, const ch
                 strcpy(root->data.borrowedBooks[i], "NULL");
                 root->data.numBorrowedBooks--;
                 root->data.borrowedBooksDueDate[i] = -1;
+                
+
+                // yeh sahi hai
+                if (calculateRemainingDays(root->data.borrowedBooksDueDate[i]) < 0) {
+                    root->data.isLate = 1;
+                    int daysLate = -calculateRemainingDays(root->data.borrowedBooksDueDate[i]);
+                    root->data.fine += daysLate * 10;
+                }
                 break;
             }
         }
@@ -649,6 +657,44 @@ void showBooksBeyondDueDate(int socket, struct BSTNodeBorrower *root, MsgPacket 
     }
 }
 
+// Function to handle the payment of fine... packet contains the amount the borrower wants to pay
+void payfine(int socket, struct BSTNodeBorrower *root, MsgPacket *packet) {
+    if (root == NULL) {
+        return;
+    }
+
+    if (strcmp(root->data.username, packet->username) == 0) {
+        int fine = atoi(packet->payload[0]);
+        if (fine > root->data.fine) {
+            send(socket, "\t\tAmount entered is greater than the fine amount\n", strlen("\t\tAmount entered is greater than the fine amount\n")+1, 0);
+            usleep(10000);
+            send(socket, "END_OF_TRANSMISSION", strlen("END_OF_TRANSMISSION")+1, 0);
+            return;
+        }
+
+        root->data.fine -= fine;
+        if (root->data.fine == 0) {
+            root->data.isLate = 0;
+        }
+
+        WriteDatabaseBorrower(root, "../database/users/borrower.txt");
+        send(socket, "\t\tFine paid successfully\n", strlen("\t\tFine paid successfully\n")+1, 0);
+        usleep(10000);
+        send(socket, "END_OF_TRANSMISSION", strlen("END_OF_TRANSMISSION")+1, 0);
+        return;
+    }
+
+    if (strcmp(packet->username, root->data.username) < 0) {
+        payfine(socket, root->left, packet);
+    } else {
+        payfine(socket, root->right, packet);
+    }
+
+    const char *endOfTransmission = "END_OF_TRANSMISSION";
+    send(socket, endOfTransmission, strlen(endOfTransmission)+1, 0);
+}
+
+
 
 
 
@@ -770,6 +816,11 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet)
         printf("REQFROMCLIENT (LOGOUT) --- %s\n" , packet->username);
         setLoginStatus(rootborrower, packet->username, 0);
         logout(new_socket);
+        break;
+
+    case 11:
+        printf("REQFROMCLIENT (PAY FINE) --- %s\n" , packet->username);
+        payfine(new_socket,rootborrower ,packet);
         break;
 
     default:

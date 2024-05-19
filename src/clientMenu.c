@@ -139,6 +139,7 @@ void borrowerMenu(int sock, char *username) {
         printf("8.) Update Contact\n");
         printf("9.) Check Due Dates\n");
         printf("10.) Logout\n");
+        printf("11.) Pay Fine\n\n");
 
         printf("\nEnter your choice (IN NUMBERS): ");
         if (scanf("%d", &choice) != 1) {
@@ -169,6 +170,13 @@ void borrowerMenu(int sock, char *username) {
             scanf("%99s", new_contact); // Limit input to avoid buffer overflow
             clearInputBuffer();
             payload[0] = strdup(new_contact);
+        }
+        else if (choice == 11) {
+            char fine[MAX_NAME_LENGTH];
+            printf("\nEnter the amount you want to pay: ");
+            scanf("%99s", fine); // Limit input to avoid buffer overflow
+            clearInputBuffer();
+            payload[0] = strdup(fine);
         }
 
         MsgPacket packet = {
@@ -212,6 +220,9 @@ void borrowerMenu(int sock, char *username) {
                 break;
             case 10:
                 printf("\n\t\tLogging out...\n\n");
+                break;
+            case 11:
+                printf("\n\t\tPaying fine...\n\n");
                 break;
             default:
                 printf("\n\t\tInvalid choice\n\n");
