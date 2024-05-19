@@ -228,54 +228,64 @@ void librarianPacketHandler(int new_socket, MsgPacket *packet) {
     switch(packet->choice)
     {
         case 1:
+            printf("REQFROM CLIENT (ADD BOOK) --- %s\n", packet->username);
             isAvailable = atoi(packet->payload[5]) > 0 ? 1 : 0;
             insertBook(&rootbook,packet->payload[3] ,createBook(new_socket,packet->payload[0], packet->payload[2], packet->payload[1],atoi(packet->payload[5]) , isAvailable , atoi(packet->payload[4]) ,0 , 0 , "NULL")); 
             writeBSTToFileBook(rootbook, "../database/Books/books.txt");
             break;  
 
         case 2:
+            printf("REQFROM CLIENT (DELETE BOOK) --- %s\n", packet->username);
             deleteBook(new_socket, &rootbook, packet->payload[0]);
             writeBSTToFileBook(rootbook, "../database/Books/books.txt");
             break;
 
         case 3:
-            updateBook(new_socket, rootbook, packet->payload[1], packet->payload[0], packet->payload[2], packet->payload[3], packet->payload[4], packet->payload[5]);
-            writeBSTToFileBook(rootbook, "../database/Books/books.txt");
+            printf("REQFROM CLIENT (BOOKS BEYOND DUE DATE) --- %s\n", packet->username);
+            showBooksBeyondDueDate(new_socket, rootborrower, packet);
             break;
             
         case 4:
+            printf("REQFROM CLIENT (READ ALL BOOKS) --- %s\n", packet->username);
             ReadAllBooks(new_socket, rootbook, packet);
             break;
 
         case 5:
+            printf("REQFROM CLIENT (READ ALL GENRES) --- %s\n", packet->username);
             ReadAllGenres(new_socket, rootbook, packet);
             break;
 
         case 6:
+            printf("REQFROM CLIENT (READ ALL BORROWERS) --- %s\n", packet->username);
             showAllBorrowers(new_socket, rootborrower);
             break;
 
         case 7:
+            printf("REQFROM CLIENT (ADD BORROWER) --- %s\n", packet->username);
             id = getMaxUserID(rootborrower) + 1;
-            insertBorrower(&rootborrower, createBorrower(new_socket, id, packet->payload[0], packet->payload[1], packet->payload[2], atoll(packet->payload[3])));
+            insertBorrower(&rootborrower, createBorrower(new_socket, id, packet->payload[2], packet->payload[0], packet->payload[1], atoll(packet->payload[3])));
             WriteDatabaseBorrower(rootborrower, "../database/users/borrower.txt");
             
             break;
 
         case 8:
+            printf("REQFROM CLIENT (DELETE BORROWER) --- %s\n", packet->username);
             deleteBorrower(new_socket, &rootborrower, packet->payload[0]);
             WriteDatabaseBorrower(rootborrower, "../database/users/borrower.txt");
             break;
 
         case 9:
+            printf("REQFROM CLIENT (UPDATE BORROWER) --- %s\n", packet->username);
             showAllBorrowersLoggedIn(new_socket, rootborrower);
             break;
 
         case 10:
+            printf("REQFROM CLIENT (SHOW ALL LIBRARIANS LOGGED IN) --- %s\n", packet->username);
             showAllLibrariansLoggedIn(new_socket, rootlibrarian);
             break;
 
         case 11:
+            printf("REQFROM CLIENT (LOGOUT) --- %s\n", packet->username);
             setLoginStatusLibr(rootlibrarian, packet->username, 0);
             logout(new_socket);
             break;

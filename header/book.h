@@ -55,7 +55,6 @@ void writeBSTToFileHelperBook(struct BSTNodeBook *root, int fd) ;
 void writeBSTToFileBook(struct BSTNodeBook *root, const char *filename);
 int borrowBook(int socket, struct BSTNodeBook *root, const char *ISBN, char *username);
 void FetchBookNameFromISBN(struct BSTNodeBook *root, const char *ISBN, char *bookName);
-int CheckRemainingTimeForBookReturn(struct BSTNodeBook *root, const char *bookName);
 int returnBook(int socket, struct BSTNodeBook *root, const char *ISBN, char *username);
 int validateISBN(const char *ISBN);
 int deleteBookFromGenre(int socket, struct Genre *genre, const char *ISBN);

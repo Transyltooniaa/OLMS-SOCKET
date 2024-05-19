@@ -272,6 +272,11 @@ int borrowBook(int socket, struct BSTNodeBook *root, const char *ISBN, char *use
             {
                 book->isAvailable = 0;
                 send(socket, "\t\tBook not available !", strlen("\t\tBook not available !") + 1, 0);
+                usleep(10000);
+                const char *eot = "END_OF_TRANSMISSION";
+                send(socket, eot, strlen(eot) + 1, 0);
+                usleep(10000);
+                return 0;
             } 
             
             else 
@@ -331,27 +336,6 @@ void FetchBookNameFromISBN(struct BSTNodeBook *root, const char *ISBN, char *boo
 }
 
 
-
-int CheckRemainingTimeForBookReturn(struct BSTNodeBook *root, const char *bookName) {
-    if (root == NULL) {
-        return INT_MAX;
-    }
-
-    int left = CheckRemainingTimeForBookReturn(root->left, bookName);
-
-    for (int i = 0; i < root->genre.numBooks; i++) {
-        struct LibraryBook *book = &(root->genre.books[i]);
-        if (strcmp(book->title, bookName) == 0) {
-            time_t currentTime = time(NULL);
-            int remainingTime = (int)((book->returnDate - currentTime) / 86400); // Convert seconds to days
-            return remainingTime;
-        }
-    }
-
-    int right = CheckRemainingTimeForBookReturn(root->right, bookName);
-
-    return left < right ? left : right;
-}
 
 
 int returnBook(int socket, struct BSTNodeBook *root, const char *ISBN, char *username) {

@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #define MAX_PASSWORD_LENGTH 20
 
@@ -36,6 +37,12 @@ struct Borrower createBorrower(int socket ,int ID, const char* username, const c
     strcpy(borrower.borrowedBooks[0], "NULL");
     strcpy(borrower.borrowedBooks[1], "NULL");
     strcpy(borrower.borrowedBooks[2], "NULL");
+
+    for (int i = 0; i < 3; i++) {
+        borrower.borrowedBooksDueDate[i] = -1;
+    }
+
+
     borrower.numBorrowedBooks = 0;
     borrower.fine = 0;
     borrower.isLate = 0;
@@ -95,7 +102,7 @@ void ReadDatabaseBorrower(struct BSTNodeBorrower  **root, const char *filename) 
     struct Borrower borrower;
 
     while (fgets(buffer, BUFFER_SIZE, file) != NULL) {
-        sscanf(buffer, "%d %s %s %s %lld %s %s %s %d %d %d %d",&borrower.ID ,borrower.username, borrower.name, borrower.password, &borrower.contact,borrower.borrowedBooks[0],borrower.borrowedBooks[1],borrower.borrowedBooks[2] ,&borrower.numBorrowedBooks, &borrower.fine, &borrower.isLate, &borrower.LoginStatus);
+        sscanf(buffer, "%d %s %s %s %lld %s %s %s %d %d %d %d %d %d %d",&borrower.ID ,borrower.username, borrower.name, borrower.password, &borrower.contact,borrower.borrowedBooks[0],borrower.borrowedBooks[1],borrower.borrowedBooks[2] ,&borrower.borrowedBooksDueDate[0],&borrower.borrowedBooksDueDate[1],&borrower.borrowedBooksDueDate[2] ,&borrower.numBorrowedBooks, &borrower.fine, &borrower.isLate, &borrower.LoginStatus);
         insertBorrower(root, borrower);
     }
     fclose(file);
@@ -111,7 +118,7 @@ void writeBSTToFileHelperBorrower(struct BSTNodeBorrower *root, int fd) {
     }
 
     writeBSTToFileHelperBorrower(root->left, fd);
-    dprintf(fd, "%d %s %s %s %lld %s %s %s %d %d %d %d\n", root->data.ID, root->data.username, root->data.name, root->data.password, root->data.contact, root->data.borrowedBooks[0], root->data.borrowedBooks[1], root->data.borrowedBooks[2], root->data.numBorrowedBooks, root->data.fine, root->data.isLate, root->data.LoginStatus);
+    dprintf(fd, "%d %s %s %s %lld %s %s %s %d %d %d %d %d %d %d\n", root->data.ID, root->data.username, root->data.name, root->data.password, root->data.contact, root->data.borrowedBooks[0], root->data.borrowedBooks[1], root->data.borrowedBooks[2],root->data.borrowedBooksDueDate[0],root->data.borrowedBooksDueDate[1],root->data.borrowedBooksDueDate[2], root->data.numBorrowedBooks, root->data.fine, root->data.isLate, root->data.LoginStatus);
     writeBSTToFileHelperBorrower(root->right, fd);
 }
 
@@ -178,7 +185,7 @@ void showBorrowedBooks(int socket, struct BSTNodeBorrower *root, MsgPacket *pack
         char buffer[BUFFER_SIZE];
         for (int i = 0; i < 3; i++) {
             if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
-                snprintf(buffer, BUFFER_SIZE, "\t%s\n", root->data.borrowedBooks[i]);
+                snprintf(buffer, BUFFER_SIZE, "\tBOOK : %s\n", root->data.borrowedBooks[i]);
                 send(socket, buffer, strlen(buffer) + 1, 0); 
                 usleep(10000);
             }
@@ -328,6 +335,7 @@ void borrowBookUserUpdate(struct BSTNodeBorrower *root, char *username, const ch
             if (strcmp(root->data.borrowedBooks[i], "NULL") == 0) {
                 strcpy(root->data.borrowedBooks[i], bookName);
                 root->data.numBorrowedBooks++;
+                root->data.borrowedBooksDueDate[i] = time(NULL) + 604800; 
                 break;
             }
         }
@@ -341,6 +349,7 @@ void borrowBookUserUpdate(struct BSTNodeBorrower *root, char *username, const ch
     }
 
 }      
+
 
 
 int isEligibleToBorrow(struct BSTNodeBorrower *root, char *username) {
@@ -363,41 +372,6 @@ int isEligibleToBorrow(struct BSTNodeBorrower *root, char *username) {
     }
 }
 
-
-
-void sendDueDates(int socket, struct BSTNodeBorrower *root, MsgPacket *packet, struct BSTNodeBook *rootbook) {
-    if (root == NULL) {
-        return;
-    }
-
-    if (strcmp(root->data.username, packet->username) == 0) {
-        char buffer[BUFFER_SIZE];
-        for (int i = 0; i < 3; i++) {
-            if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
-                int remainingTime = CheckRemainingTimeForBookReturn(rootbook, root->data.borrowedBooks[i]);
-                snprintf(buffer, sizeof(buffer), "\t%s: %d days remaining\n", root->data.borrowedBooks[i], remainingTime);
-                if (send(socket, buffer, strlen(buffer), 0) == -1) {
-                    perror("send");
-                    return;
-                }
-                usleep(10000); // Small delay, if necessary for timing issues
-            }
-        }
-        // Clear the buffer before sending the end-of-transmission message
-        memset(buffer, 0, sizeof(buffer));
-        snprintf(buffer, sizeof(buffer), "END_OF_TRANSMISSION");
-        if (send(socket, buffer, strlen(buffer) + 1, 0) == -1) {
-            perror("send");
-        }
-        return;
-    }
-
-    if (strcmp(packet->username, root->data.username) < 0) {
-        sendDueDates(socket, root->left, packet, rootbook);
-    } else {
-        sendDueDates(socket, root->right, packet, rootbook);
-    }
-}
 
 
 int isEligibleTOReturn(struct BSTNodeBorrower *root, char *username, char *bookName) {
@@ -438,6 +412,7 @@ void returnBookUserUpdate(struct BSTNodeBorrower *root, char *username, const ch
             if (strcmp(root->data.borrowedBooks[i], bookName) == 0) {
                 strcpy(root->data.borrowedBooks[i], "NULL");
                 root->data.numBorrowedBooks--;
+                root->data.borrowedBooksDueDate[i] = -1;
                 break;
             }
         }
@@ -570,6 +545,78 @@ int getMaxUserID(struct BSTNodeBorrower *root) {
 }
 
 
+int calculateRemainingDays(time_t dueDate) {
+    time_t now = time(NULL);
+    double seconds = difftime(dueDate, now);
+    int days = (int)(seconds / (60 * 60 * 24));
+    return days;
+}
+
+void sendDueDatesBorr(int socket, struct BSTNodeBorrower *root, MsgPacket *packet) {
+    if (root == NULL) {
+        return;
+    }
+
+    // Check if the current node's username matches the packet's username
+    if (strcmp(root->data.username, packet->username) == 0) {
+        char buffer[BUFFER_SIZE];
+        for (int i = 0; i < 3; i++) {
+            if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
+                int remainingTime = calculateRemainingDays(root->data.borrowedBooksDueDate[i]);
+                snprintf(buffer, BUFFER_SIZE, "\t%s: %d days remaining\n", root->data.borrowedBooks[i], remainingTime);
+                send(socket, buffer, strlen(buffer), 0);
+                usleep(10000);
+            }
+        }
+        send(socket, "END_OF_TRANSMISSION", strlen("END_OF_TRANSMISSION") + 1, 0);
+        return;
+    }
+
+    if (strcmp(packet->username, root->data.username) < 0) {
+        sendDueDatesBorr(socket, root->left, packet);
+    } else {
+        sendDueDatesBorr(socket, root->right, packet);
+    }
+
+    const char *endOfTransmission = "END_OF_TRANSMISSION";
+    send(socket, endOfTransmission, strlen(endOfTransmission) + 1, 0);
+}
+
+
+void showBooksBeyondDueDate(int socket, struct BSTNodeBorrower *root, MsgPacket *packet) {
+    if (root == NULL) {
+        return;
+    }
+
+    // Check if the current node's username matches the packet's username
+    if (strcmp(root->data.username, packet->username) == 0) {
+        char buffer[BUFFER_SIZE];
+        for (int i = 0; i < 3; i++) {
+            if (strcmp(root->data.borrowedBooks[i], "NULL") != 0) {
+                int remainingTime = calculateRemainingDays(root->data.borrowedBooksDueDate[i]);
+                if (remainingTime < 0) {
+                    snprintf(buffer, BUFFER_SIZE, "\t%s: %d days overdue\n", root->data.borrowedBooks[i], -remainingTime);
+                    send(socket, buffer, strlen(buffer), 0);
+                    usleep(10000);
+                }
+            }
+        }
+        send(socket, "END_OF_TRANSMISSION", strlen("END_OF_TRANSMISSION") + 1, 0);
+        return;
+    }
+
+    if (strcmp(packet->username, root->data.username) < 0) {
+        showBooksBeyondDueDate(socket, root->left, packet);
+    } else {
+        showBooksBeyondDueDate(socket, root->right, packet);
+    }
+
+    send(socket, "\t    No books are overdue !", strlen("No books are overdue !"), 0);
+    const char *endOfTransmission = "END_OF_TRANSMISSION";
+    send(socket, endOfTransmission, strlen(endOfTransmission) + 1, 0);
+}
+
+
 // Packet Handler
 void borrowerPacketHandler(int new_socket, MsgPacket *packet)
 {
@@ -585,14 +632,16 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet)
     switch (packet->choice)
     {
     case 1:
+        printf("REQFROMCLIENT (ALL_GENRES) --- %s\n" , packet->username);
         ReadAllGenres(new_socket,rootbook ,packet);
         break;
     case 2:
+        printf("REQFROMCLIENT (ALL_BOOKS) --- %s\n" , packet->username);
         ReadAllBooks(new_socket,rootbook ,packet);
         break;
 
     case 3:
-
+        printf("REQFROMCLIENT (BORROW_BOOK) --- %s\n" , packet->username);
         validISBN = validateISBN(packet->payload[0]);
         if(validISBN == 0)
         {
@@ -622,6 +671,7 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet)
         break;
 
     case 4:
+        printf("REQFROMCLIENT (RETURN_BOOK) --- %s\nx" , packet->username);
         validISBN = validateISBN(packet->payload[0]);
         if(validISBN == 0)
         {
@@ -655,33 +705,40 @@ void borrowerPacketHandler(int new_socket, MsgPacket *packet)
 
         break;
     
-    //show borrowed books
+ 
     case 5:
+        printf("REQFROMCLIENT (SHOW_BORROWED_BOOKS) --- %s\n" , packet->username);
         showBorrowedBooks(new_socket,rootborrower ,packet);
         break;
 
     case 6:
+        printf("REQFROMCLIENT (SHOW_MY_INFO) --- %s\n" , packet->username);
         showMyInfo(new_socket,rootborrower ,packet);
         break;
 
     case 7:
+        printf("REQFROMCLIENT (CHANGE_PASSWORD) --- %s\n" , packet->username);
         changePassword(new_socket,rootborrower ,packet);
         break;
 
     case 8:
+        printf("REQFROMCLIENT (UPDATE_CONTACT) --- %s\n" , packet->username);
         updateContact(new_socket,rootborrower ,packet);
         break;
 
     case 9:
-        sendDueDates(new_socket,rootborrower ,packet,rootbook);
+        printf("REQFROMCLIENT (CHECK_DUE_DATE) --- %s\n" , packet->username);
+        sendDueDatesBorr(new_socket,rootborrower ,packet);
         break;
     
     case 10:
+        printf("REQFROMCLIENT (LOGOUT) --- %s\n" , packet->username);
         setLoginStatus(rootborrower, packet->username, 0);
         logout(new_socket);
         break;
 
     default:
+        printf("REQFROMCLIENT (INVALID) --- %s\n" , packet->username);
         eot = "END_OF_TRANSMISSION";
         send(new_socket, eot, strlen(eot) + 1, 0);
         break;
